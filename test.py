@@ -1,31 +1,54 @@
 import osmnx as ox
 import folium
+from folium.plugins import MarkerCluster
 import geopandas as gpd
 import requests
 import webbrowser
-from shapely.geometry import Point
-import math
+from geopy.geocoders import Nominatim
+from geopy import exc
+from geopy import distance
+from geopy import units
+from sys import exit
 
-class Map:
-    def __init__(self, center, zoom_start):
-        self.center = center
-        self.zoom_start = zoom_start
-    
-    def showMap(self):
-        my_map = folium.Map(location = self.center, zoom_start = self.zoom_start)
-        my_map.save("map.html")
-        webbrowser.open("map.html")
+geolocator = Nominatim(user_agent="metrobike_application")
+geocode = lambda query: geolocator.geocode("%s, Los Angeles County CA" % query)
 
-def getUserBikes():
-    userLoc = input("What is your current location? (Default central LA)\n") or "Mid-City, Los Angeles"
-    kBikeStations = int(input("How many bikestations are you seaching for? (Default 1)\n") or 1)
+class locStationObj:
+    def __init__(self, geolocation, kStations, bod):
+        self.location = geolocation
+        self.kStations = kStations
+        self.coords = (self.location.latitude, self.location.longitude)
+        self.bod = bod
 
-def getNetworkGrid():
+def do_geocode(address, attempt = 1, max_attempts = 5):
     try:
-        G = ox.load_graphml("LA.graphml")
-    except FileNotFoundError:
-        G = ox.graph_from_bbox(34.1879, 33.8983, -118.1576, -118.5287, network_type='bike')
-        ox.save_graphml(G, "LA.graphml")
+        return geocode(address)
+    except exc.GeocoderTimedOut:
+        if attempt <= max_attempts:
+            return do_geocode(address, attempt=attempt+1)
+        raise
+
+def getUlocKstat():
+    userInput= input("What is your current location? (Default central LA)\n") or "Mid-City, Los Angeles"
+    kBikeStations = int(input("How many stations do you want to display? (Default 1)\n") or 1)
+    bOrD = input("Are you searching for available bikes or docks? (Default bikes)\n").lower() or "bikes"
+    userLoc = do_geocode(userInput)
+    if userLoc != None:
+        if bOrD == 'bikes':
+            userLoc = locStationObj(userLoc, kBikeStations, "bikesAvailable")
+        elif bOrD == 'docks':
+            userLoc = locStationObj(userLoc, kBikeStations, "docksAvailable")
+        else:
+            exit("Couldn't parse bikes or stations.")
+        return userLoc
+    else:
+        exit("Location not found.")
+
+def calcDist(stationLoc, userLoc):
+    try:
+        return int(distance.distance((stationLoc[0], stationLoc[1]),(userLoc[0], userLoc[1])).meters)
+    except:
+        return 0
 
 def getStationData():
     url = "https://bikeshare.metro.net/stations/json/"
@@ -34,16 +57,38 @@ def getStationData():
     ##specifying a request header, which results in a 403 denied response
     data = r.json()
     fulldf = gpd.GeoDataFrame.from_features(data)
-    newdf = fulldf[["addressStreet", "addressZipCode", "bikesAvailable", "docksAvailable", "latitude", "longitude"]]
-    newdf.assign({'userDist' : 0.0})
+    workdf = fulldf[["addressStreet", "addressZipCode", "bikesAvailable", "docksAvailable", "latitude", "longitude"]]
+    workdf = workdf.assign(userDist='NV')
+    #print(workdf.to_string())
+    return workdf
 
-def calcDist(point1, point2):
-    return (math.acos*(math.sin(point1.x)*(math.sin(point2.x))+ math.cos(point1.x)*math.cos(point2.x)*math.cos(point2.y-point1.y))*6371)
+def formatDf(workdf, userLocStationObj):
+    workdf.userDist = [calcDist((stationLat, stationLon), userLocStationObj.coords)
+                       for stationLat, stationLon in workdf[["latitude", "longitude"]].values]
+    workdf = workdf.drop(workdf[workdf[userLocStationObj.bod] == 0].index)
+    workdf = workdf.sort_values("userDist", ascending=True)
+    workdf = workdf.reset_index(drop=True)
+    workdf = workdf.loc[0:userLocStationObj.kStations-1]
+    return workdf
+
+def getNetworkGrid():
+    try:
+        G = ox.load_graphml("LA.graphml")
+        print("Opening network grid . . . ")
+    except FileNotFoundError:
+        print("Downloading network grid . . .")
+        G = ox.graph_from_bbox(34.1879, 33.8983, -118.1576, -118.5287, network_type='bike')
+        ox.save_graphml(G, "LA.graphml")
 
 
+userLoc = getUlocKstat()
 stationDf = getStationData()
-print(stationDf)
+relevantStations = formatDf(stationDf, userLoc)
+print(relevantStations)
 
-m = folium.Map(location=[stationDf.latitude.mean(), stationDf.longitude.mean()], zoom_start=14, control_scale=True)
+m = folium.Map(location=[stationDf.latitude.mean(), stationDf.longitude.mean()], zoom_start=12, control_scale=True)
+nodes = relevantStations[["latitude", "longitude"]]
+MarkerCluster(nodes).add_to(m)
+folium.Marker(location=[userLoc.coords[0], userLoc.coords[1]], popup="You are here", icon=folium.Icon(color="green")).add_to(m)
 m.save("bigMap.html")
 webbrowser.open("bigMap.html")
