@@ -1,4 +1,3 @@
-import osmnx as ox
 import folium
 from folium.plugins import MarkerCluster
 import geopandas as gpd
@@ -70,16 +69,6 @@ def formatDf(workdf, userLocStationObj):
     workdf = workdf.reset_index(drop=True)
     workdf = workdf.loc[0:userLocStationObj.kStations-1]
     return workdf
-
-def getNetworkGrid():
-    try:
-        G = ox.load_graphml("LA.graphml")
-        print("Opening network grid . . . ")
-    except FileNotFoundError:
-        print("Downloading network grid . . .")
-        G = ox.graph_from_bbox(34.1879, 33.8983, -118.1576, -118.5287, network_type='bike')
-        ox.save_graphml(G, "LA.graphml")
-
 
 userLoc = getUlocKstat()
 stationDf = getStationData()
