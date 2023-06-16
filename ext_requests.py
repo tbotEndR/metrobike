@@ -36,7 +36,7 @@ def directions(startLat, startLon, destLat, destLon, mode="bicycle"):
     url = "https://route-and-directions.p.rapidapi.com/v1/routing"
     querystring = {"waypoints":f"{str(startLat)},{str(startLon)}|{str(destLat)},{str(destLon)}", "mode":mode}
     headers = {
-	"X-RapidAPI-Key": "",
+	"X-RapidAPI-Key": "INSERT YOUR KEY HERE",
 	"X-RapidAPI-Host": "route-and-directions.p.rapidapi.com"
     }
     response = requests.get(url, headers=headers, params=querystring)
