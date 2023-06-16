@@ -11,6 +11,9 @@ This was my first ever project using Python as well as the first time that I use
 
 # DEPENENCIES
 This project uses Folium, Geopy as well as Geopandas. Please make sure to install these packages according to the instructions on their respective websites.
+You will also need a valid Rapid-API Key to insert in the directions() function in ext_requests.py:
+
+> headers = {"X-RapidAPI-Key": "INSERT YOUR KEY HERE","X-RapidAPI-Host": "route-and-directions.p.rapidapi.com" }
 
 ### FOLIUM:
 https://python-visualization.github.io/folium/installing.html
