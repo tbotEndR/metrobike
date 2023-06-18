@@ -34,27 +34,17 @@ class routeObj():
 
 def getUserLocation(arg = "station"):
     userLocation = None
-    if arg == "station":
-        while userLocation is None:
-            userAddress= input("What is your current location? (Default: Mid-City, LA)\n") or "Mid-City, Los Angeles"
-            userLocation = er.do_geocode(userAddress)
-            if userLocation == None:
-                print("Location not found. Try again.\n")
-
-    elif arg == "source":
-        while userLocation is None:
-            userAddress= input("What is your starting point?\n")
-            userLocation = er.do_geocode(userAddress)
-            if userLocation == None:
-                print("Location not found. Try again.\n")
-    
-    elif arg == "destination":
-        while userLocation is None:
-            userAddress= input("What is your destination?\n")
-            userLocation = er.do_geocode(userAddress)
-            if userLocation == None:
-                print("Location not found. Try again.\n")
-
+    while userLocation is None:
+        match (arg):
+            case "station":
+                userAddress= input("What is your current location? (Default: Mid-City, LA)\n") or "Mid-City, Los Angeles"
+            case "source":
+                userAddress= input("What is your starting point?\n")
+            case "destination":
+                userAddress= input("What is your destination?\n")
+        userLocation = er.do_geocode(userAddress)
+        if userLocation == None:
+            print("Location not found. Try again.\n")
     print(userLocation)
     print("Is this the correct location? (y/n)")
     correct = input() or 'y'
